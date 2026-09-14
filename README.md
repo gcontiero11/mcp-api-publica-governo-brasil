@@ -74,6 +74,47 @@ npx @modelcontextprotocol/inspector python -m mcp_camara_pecs   # inspeção man
 3. `listar_votacoes_pec(id)` → obtenha o `id` da votação.
 4. `detalhar_votacao(id)`, `listar_votos_votacao(id)`, `listar_orientacoes_votacao(id)`.
 
+## Host CLI (busca com LLM local via Ollama)
+
+Além do servidor, o projeto traz um **host MCP em terminal** (`pecs-host`): você pergunta
+em português, um **LLM local (via Ollama)** interpreta, chama as ferramentas do servidor
+**pelo protocolo MCP** e responde. Funciona **100% offline** e sem chave de API.
+
+> Em máquinas **sem GPU**, o modelo roda em CPU: respostas mais lentas e escolha de
+> ferramenta menos robusta. Recomenda-se `qwen2.5:7b` (bom em *tool-calling*) ou
+> `qwen2.5:3b` (mais rápido).
+
+### Setup
+
+```bash
+# 1) Instalar o Ollama (Linux) — pode pedir sudo
+curl -fsSL https://ollama.com/install.sh | sh
+
+# 2) Baixar um modelo com suporte a ferramentas
+ollama pull qwen2.5:7b        # ou: ollama pull qwen2.5:3b
+
+# 3) Garantir o serviço no ar (se não estiver como serviço)
+ollama serve &
+
+# 4) Instalar o projeto com o extra "host"
+pip install -e ".[host]"
+```
+
+### Uso
+
+```bash
+pecs-host
+# ou: python -m pecs_host
+```
+
+No REPL: pergunte à vontade (ex.: *"Liste 3 PECs de 2023"*, *"Quais as votações da PEC
+2595897 e como cada bancada orientou?"*). Comandos: `/tools`, `/modelo <nome>`, `/sair`.
+
+### Variáveis de ambiente (host)
+
+- `PECS_HOST_MODEL` — modelo do Ollama (padrão `qwen2.5:7b`).
+- `OLLAMA_HOST` — endereço do Ollama (padrão `http://localhost:11434`).
+
 ## Licença
 
 MIT.
