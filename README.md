@@ -86,6 +86,13 @@ MCP** e responde. Dois backends são suportados:
 > Modelos com bom suporte a *tool-calling* (Qwen2.5, Llama 3.1 etc.) encadeiam as
 > ferramentas de forma mais confiável; modelos muito pequenos podem errar o schema.
 
+> **Dois jeitos de usar o MCP com o LM Studio — não confunda:**
+> 1. **App do LM Studio como host** — você configura este servidor MCP no `mcp.json`
+>    do próprio app e conversa pela interface dele; o LM Studio chama as ferramentas
+>    sozinho. Não usa o `pecs-host`.
+> 2. **`pecs-host` no terminal** (este tutorial) — o CLI é o host e fala com o modelo
+>    pelo **servidor HTTP** do LM Studio. Exige o servidor local **ligado** (passo 3).
+
 ### Tutorial passo a passo — LM Studio (Linux · macOS · Windows)
 
 Do zero até a primeira pergunta respondida. Onde o comando muda por sistema, os três
@@ -108,8 +115,23 @@ e baixe. Sugestões: **`Qwen2.5 7B Instruct`** (equilíbrio) ou **`Qwen2.5 3B In
 
 #### 3. Ligar o servidor local
 
+> ⚠️ **Carregar o modelo e conseguir conversar no app NÃO significa que o servidor
+> HTTP está no ar.** O chat do app funciona sem ele; o `pecs-host` precisa dele ligado.
+
 Abra a aba **Developer** (ícone `>_`), **carregue o modelo** no topo e clique em
-**Start Server**. O endpoint padrão é **`http://localhost:1234/v1`**.
+**Start Server** (ou pelo terminal: `lms server start`). O endpoint padrão é
+**`http://localhost:1234/v1`**.
+
+Verifique que subiu de verdade:
+
+```bash
+lms server status            # deve dizer "running on port 1234"
+curl http://localhost:1234/v1/models   # deve listar seus modelos
+```
+
+> **Use o endpoint `/v1`** (compatível com OpenAI) — é o único que aceita ferramentas.
+> Os endpoints da API *nativa* do LM Studio (`/api/v0/...`, `/api/v1/chat`) usam outro
+> formato e **rejeitam `tools`**, então **não funcionam** com o `pecs-host`.
 
 #### 4. Descobrir o nome exato do modelo
 
@@ -125,7 +147,9 @@ curl http://localhost:1234/v1/models
 Invoke-RestMethod http://localhost:1234/v1/models | ConvertTo-Json -Depth 5
 ```
 
-Anote o valor do campo `"id"` (algo como `qwen2.5-7b-instruct`).
+Anote o valor **exato** do campo `"id"` — ele pode incluir um prefixo de publisher
+(ex.: `google/gemma-4-e4b`, `qwen2.5-7b-instruct`). É esse valor, com prefixo e tudo,
+que vai em `PECS_HOST_MODEL`.
 
 #### 5. Preparar o ambiente Python (>= 3.10)
 
@@ -180,8 +204,10 @@ No REPL, pergunte à vontade (ex.: *"Liste 3 PECs de 2023"*, *"Quais as votaçõ
 
 | Sintoma | Causa provável / solução |
 |---|---|
+| `curl .../v1/models` recusa conexão na porta 1234 | Servidor HTTP desligado. Conversar no app **não** liga o servidor — rode `lms server start` (ou Start Server na aba Developer). |
 | *Não consegui falar com o LM Studio* | Servidor não está ligado (passo 3) ou `PECS_HOST_BASE_URL` errado. Teste o `curl` do passo 4. |
-| *model not found* | `PECS_HOST_MODEL` não bate com o `id` do passo 4, ou nenhum modelo carregado. |
+| *model not found* | `PECS_HOST_MODEL` não bate com o `id` exato do passo 4 (inclusive o prefixo de publisher), ou nenhum modelo carregado. |
+| *Unrecognized key(s): 'tools'* | Você apontou para um endpoint `/api/...` (API nativa). Use `PECS_HOST_BASE_URL` terminando em `/v1`. |
 | Respostas sem usar ferramentas / loop não conclui | Modelo fraco em *tool-calling*: troque por Qwen2.5/Llama 3.1 com `/modelo <nome>`. |
 
 ### Alternativa — Ollama (100% offline)
