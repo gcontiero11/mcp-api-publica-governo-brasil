@@ -28,6 +28,20 @@ pip install -e .          # produção
 pip install -e ".[dev]"   # com dependências de teste
 ```
 
+### Dependências opcionais (extras)
+
+O pacote base instala só o **servidor MCP**. Os "extras" adicionam o que cada uso precisa:
+
+| Extra | Comando | O que traz / quando usar |
+|-------|---------|--------------------------|
+| _(nenhum)_ | `pip install -e .` | Só o servidor MCP (`mcp-camara-pecs`). |
+| `dev` | `pip install -e ".[dev]"` | Ferramentas de teste (pytest…). |
+| `host` | `pip install -e ".[host]"` | O host `pecs-host` com backend **LM Studio** (traz `openai` + `rich`). |
+| `ollama` | `pip install -e ".[host,ollama]"` | Adiciona o backend **Ollama** (traz `ollama`). Combine com `host`. |
+
+> Trocou de backend depois de instalar? **Reinstale o extra correspondente** — senão
+> falta a lib do backend novo (ex.: `ModuleNotFoundError: No module named 'openai'`).
+
 ## Uso
 
 O servidor roda no transporte **stdio**:
