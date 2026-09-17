@@ -74,45 +74,132 @@ npx @modelcontextprotocol/inspector python -m mcp_camara_pecs   # inspeção man
 3. `listar_votacoes_pec(id)` → obtenha o `id` da votação.
 4. `detalhar_votacao(id)`, `listar_votos_votacao(id)`, `listar_orientacoes_votacao(id)`.
 
-## Host CLI (busca com LLM local via Ollama)
+## Host CLI (busca com LLM)
 
 Além do servidor, o projeto traz um **host MCP em terminal** (`pecs-host`): você pergunta
-em português, um **LLM local (via Ollama)** interpreta, chama as ferramentas do servidor
-**pelo protocolo MCP** e responde. Funciona **100% offline** e sem chave de API.
+em português, um **LLM** interpreta, chama as ferramentas do servidor **pelo protocolo
+MCP** e responde. Dois backends são suportados:
 
-> Em máquinas **sem GPU**, o modelo roda em CPU: respostas mais lentas e escolha de
-> ferramenta menos robusta. Recomenda-se `qwen2.5:7b` (bom em *tool-calling*) ou
-> `qwen2.5:3b` (mais rápido).
+- **LM Studio** (padrão) — qualquer modelo servido pelo endpoint compatível com OpenAI.
+- **Ollama** — LLM local nativo, 100% offline (`PECS_HOST_BACKEND=ollama`).
 
-### Setup
+> Modelos com bom suporte a *tool-calling* (Qwen2.5, Llama 3.1 etc.) encadeiam as
+> ferramentas de forma mais confiável; modelos muito pequenos podem errar o schema.
+
+### Tutorial passo a passo — LM Studio (Linux · macOS · Windows)
+
+Do zero até a primeira pergunta respondida. Onde o comando muda por sistema, os três
+estão indicados.
+
+#### 1. Instalar o LM Studio
+
+Baixe o instalador em **<https://lmstudio.ai>** e instale:
+
+- **Linux** — arquivo `.AppImage`: dê permissão de execução e rode
+  (`chmod +x LM-Studio-*.AppImage && ./LM-Studio-*.AppImage`).
+- **macOS** — arquivo `.dmg`: arraste o app para *Applications*.
+- **Windows** — instalador `.exe`: siga o assistente.
+
+#### 2. Baixar um modelo com suporte a ferramentas
+
+No LM Studio, abra a aba **🔍 Discover/Search**, procure um modelo bom em *tool-calling*
+e baixe. Sugestões: **`Qwen2.5 7B Instruct`** (equilíbrio) ou **`Qwen2.5 3B Instruct`**
+(mais leve). Evite modelos muito pequenos — eles erram o formato das chamadas de ferramenta.
+
+#### 3. Ligar o servidor local
+
+Abra a aba **Developer** (ícone `>_`), **carregue o modelo** no topo e clique em
+**Start Server**. O endpoint padrão é **`http://localhost:1234/v1`**.
+
+#### 4. Descobrir o nome exato do modelo
+
+`PECS_HOST_MODEL` precisa bater com o identificador que o LM Studio expõe (essa é a causa
+nº 1 do erro *"model not found"*). Para descobrir:
 
 ```bash
-# 1) Instalar o Ollama (Linux) — pode pedir sudo
-curl -fsSL https://ollama.com/install.sh | sh
+# Linux / macOS
+curl http://localhost:1234/v1/models
+```
+```powershell
+# Windows (PowerShell)
+Invoke-RestMethod http://localhost:1234/v1/models | ConvertTo-Json -Depth 5
+```
 
-# 2) Baixar um modelo com suporte a ferramentas
-ollama pull qwen2.5:7b        # ou: ollama pull qwen2.5:3b
+Anote o valor do campo `"id"` (algo como `qwen2.5-7b-instruct`).
 
-# 3) Garantir o serviço no ar (se não estiver como serviço)
-ollama serve &
+#### 5. Preparar o ambiente Python (>= 3.10)
 
-# 4) Instalar o projeto com o extra "host"
+Recomendado: **pyenv 3.11.13** (evita depender do Python do sistema).
+
+```bash
+# Linux / macOS (com pyenv)
+pyenv install 3.11.13
+pyenv shell 3.11.13
+python -m venv .venv
+source .venv/bin/activate
+```
+```powershell
+# Windows (PowerShell) — pyenv-win, ou o Python 3.11 do python.org
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+#### 6. Instalar o projeto
+
+```bash
 pip install -e ".[host]"
 ```
 
-### Uso
+#### 7. Rodar o host
+
+Com o servidor do LM Studio no ar, defina o nome do modelo (passo 4) e rode `pecs-host`.
+A sintaxe da variável de ambiente muda por shell:
 
 ```bash
-pecs-host
-# ou: python -m pecs_host
+# Linux / macOS (bash/zsh)
+PECS_HOST_MODEL="qwen2.5-7b-instruct" pecs-host
+```
+```powershell
+# Windows (PowerShell)
+$env:PECS_HOST_MODEL = "qwen2.5-7b-instruct"; pecs-host
+```
+```bat
+:: Windows (cmd.exe)
+set PECS_HOST_MODEL=qwen2.5-7b-instruct && pecs-host
 ```
 
-No REPL: pergunte à vontade (ex.: *"Liste 3 PECs de 2023"*, *"Quais as votações da PEC
+Se o LM Studio estiver em **outra máquina**, acrescente `PECS_HOST_BASE_URL` (ex.:
+`http://192.168.0.10:1234/v1`) da mesma forma.
+
+#### 8. Primeira pergunta
+
+No REPL, pergunte à vontade (ex.: *"Liste 3 PECs de 2023"*, *"Quais as votações da PEC
 2595897 e como cada bancada orientou?"*). Comandos: `/tools`, `/modelo <nome>`, `/sair`.
+
+#### Problemas comuns
+
+| Sintoma | Causa provável / solução |
+|---|---|
+| *Não consegui falar com o LM Studio* | Servidor não está ligado (passo 3) ou `PECS_HOST_BASE_URL` errado. Teste o `curl` do passo 4. |
+| *model not found* | `PECS_HOST_MODEL` não bate com o `id` do passo 4, ou nenhum modelo carregado. |
+| Respostas sem usar ferramentas / loop não conclui | Modelo fraco em *tool-calling*: troque por Qwen2.5/Llama 3.1 com `/modelo <nome>`. |
+
+### Alternativa — Ollama (100% offline)
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh   # instalar (Linux, pode pedir sudo)
+ollama pull qwen2.5:7b                           # modelo com suporte a ferramentas
+ollama serve &                                   # garantir o serviço no ar
+pip install -e ".[host,ollama]"                  # projeto + backend ollama
+PECS_HOST_BACKEND=ollama pecs-host               # rodar usando o Ollama
+```
 
 ### Variáveis de ambiente (host)
 
-- `PECS_HOST_MODEL` — modelo do Ollama (padrão `qwen2.5:7b`).
+- `PECS_HOST_BACKEND` — `lmstudio` (padrão) ou `ollama`.
+- `PECS_HOST_MODEL` — nome do modelo (LM Studio: precisa bater com o carregado; Ollama: padrão `qwen2.5:7b`).
+- `PECS_HOST_BASE_URL` — endpoint OpenAI-compat do LM Studio (padrão `http://localhost:1234/v1`).
+- `PECS_HOST_API_KEY` — chave enviada ao endpoint (padrão `lm-studio`; o LM Studio ignora).
 - `OLLAMA_HOST` — endereço do Ollama (padrão `http://localhost:11434`).
 
 ## Licença
