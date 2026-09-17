@@ -26,3 +26,6 @@ htmlcov/
 .idea/
 .vscode/
 .DS_Store
+
+# Config local de MCP (Claude Code) — contém caminho absoluto da máquina
+.mcp.json
