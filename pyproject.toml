@@ -13,9 +13,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Backend padrão do host (LM Studio / endpoint compatível com OpenAI).
 host = [
-    "ollama>=0.3",
+    "openai>=1.30",
     "rich>=13",
+]
+# Backend alternativo: Ollama nativo (PECS_HOST_BACKEND=ollama).
+ollama = [
+    "ollama>=0.3",
 ]
 dev = [
     "pytest>=8.0",
