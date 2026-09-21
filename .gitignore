@@ -29,3 +29,7 @@ htmlcov/
 
 # Config local de MCP (Claude Code) — contém caminho absoluto da máquina
 .mcp.json
+
+# Gemini CLI (gerado durante o workflow de code review no CI)
+.gemini/
+gha-creds-*.json
